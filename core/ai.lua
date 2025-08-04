@@ -96,9 +96,9 @@ function M.start(modules)
     config = modules.config
     state = modules.state
     
-    -- Get game functions from the modules passed by main.lua
-    GetBestMove = modules.sunfish.GetBestMove
-    PlayMove = modules.chessLocalUI.PlayMove
+    -- Use the functions found by main.lua
+    GetBestMove = modules.GetBestMove
+    PlayMove = modules.PlayMove
 
     state.aiLoaded = true
     state.aiRunning = true
