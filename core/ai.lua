@@ -3,17 +3,11 @@ local M = {}
 local state
 local config
 local connections = {}
+local GetBestMove, PlayMove
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local localPlayer = Players.LocalPlayer
-local playerScripts = localPlayer:WaitForChild("PlayerScripts")
-
-local Sunfish = require(playerScripts.AI:WaitForChild("Sunfish"))
-local ChessLocalUI = require(playerScripts:WaitForChild("ChessLocalUI"))
-
-local GetBestMove = Sunfish.GetBestMove
-local PlayMove = ChessLocalUI.PlayMove
 
 local function getGameType(clockText)
     return config.CLOCK_NAME_MAPPING[clockText] or "unknown"
@@ -43,7 +37,7 @@ local function makeMove(board, clockText, moveCount)
     if move then
         local waitTime = getSmartWait(clockText, moveCount.Value)
         task.wait(waitTime)
-        if state.aiRunning then 
+        if state.aiRunning then
             PlayMove(move)
             moveCount.Value += 1
         end
@@ -68,7 +62,7 @@ local function startGameHandler(board)
 
     local isLocalWhite = localPlayer.Name == board.WhitePlayer.Value
     local clockLabel = board:WaitForChild("Clock"):WaitForChild("MainBody"):WaitForChild("SurfaceGui"):WaitForChild(isLocalWhite and "WhiteTime" or "BlackTime")
-    
+
     local clockText = clockLabel.ContentText
 
     local function isOurTurn()
@@ -101,6 +95,10 @@ end
 function M.start(modules)
     config = modules.config
     state = modules.state
+    
+    -- Get game functions from the modules passed by main.lua
+    GetBestMove = modules.sunfish.GetBestMove
+    PlayMove = modules.chessLocalUI.PlayMove
 
     state.aiLoaded = true
     state.aiRunning = true
