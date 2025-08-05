@@ -1,13 +1,10 @@
+-- core/ai.lua
+
 local M = {}
 
 function M.start(modules)
     local config = modules.config
     local state = modules.state
-
-    state.aiLoaded = true
-    state.aiRunning = true
-    state.gameConnected = false
-    state.activeConnections = {}
 
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -39,15 +36,11 @@ function M.start(modules)
         local retryCount = 0
         local func = nil
 
-        -- Define the expected source pattern more robustly
-        local expectedSourcePattern = ".." .. moduleName -- Matches the end of the source string
-
         while retryCount < 10 and not func do
             for _, f in ipairs(getgc(true)) do
                 if typeof(f) == "function" then
                     local info = debug.getinfo(f)
-                    -- Check function name and ensure it comes from the correct script module
-                    if info and info.name == funcName and info.source and string.find(info.source, expectedSourcePattern, -#expectedSourcePattern, true) then
+                    if info.name == funcName and string.sub(info.source, -#moduleName) == moduleName then
                         func = f
                         break
                     end
@@ -60,7 +53,7 @@ function M.start(modules)
         end
 
         if not func then
-            warn("Failed to find " .. funcName .. " in " .. moduleName .. " after 10 retries. Source pattern: " .. expectedSourcePattern)
+            warn("Failed to find " .. funcName .. " in " .. moduleName .. " after 10 retries.")
         end
         return func
     end
@@ -96,7 +89,6 @@ function M.start(modules)
         local clockText = clockLabel.ContentText
 
         local function isLocalPlayersTurn()
-            -- Ensure board and its parent exist before accessing properties
             return board and board.Parent and isLocalWhite == board.WhiteToPlay.Value
         end
 
@@ -106,12 +98,7 @@ function M.start(modules)
             end
 
             local currentFen = board.FEN.Value
-            
-            -- Strict check for string type and non-emptiness
             if type(currentFen) ~= "string" or currentFen == "" then
-                -- If FEN is not ready or invalid, wait for the next turn.
-                -- You might want to log this if it happens frequently.
-                -- warn("FEN not ready or invalid. Waiting for next turn. FEN: ", currentFen)
                 return
             end
 
@@ -120,7 +107,6 @@ function M.start(modules)
             if move then
                 local waitTime = getSmartWait(clockText, moveCount)
                 task.delay(waitTime, function()
-                    -- Re-check conditions before playing the move, as state might have changed
                     if isLocalPlayersTurn() and state.aiRunning then
                         PlayMove(move)
                         moveCount = moveCount + 1
@@ -129,16 +115,6 @@ function M.start(modules)
             end
         end
 
-        -- Connect to the FEN value change to trigger processing, as the turn might not always change
-        -- if the AI is making a move. This ensures we react to a new FEN state.
-        local fenChangedConnection = board.FEN.Changed:Connect(function()
-            if isLocalPlayersTurn() then -- Only process if it's our turn
-                processTurn()
-            end
-        end)
-        table.insert(state.activeConnections, fenChangedConnection)
-
-        -- Also keep the turn change connection to handle initial turns and other events
         local turnChangedConnection = board.WhiteToPlay.Changed:Connect(processTurn)
         table.insert(state.activeConnections, turnChangedConnection)
 
@@ -146,30 +122,48 @@ function M.start(modules)
             if endedBoard == board then
                 disconnectAllConnections()
                 state.gameConnected = false
+                print("[LOG]: Game ended.")
             end
         end)
         table.insert(state.activeConnections, endGameConnection)
 
-        -- Process the initial state when the game starts
-        task.wait(0.5) -- Give the game a moment to fully initialize the board and FEN
+        print("[LOG]: AI handler attached to board.")
+        state.gameConnected = true
+        task.wait(0.5)
         processTurn()
     end
 
-    if not state.gameConnected then
-        state.gameConnected = true
+    -- NEW: Function to find a game already in progress
+    local function findAndStartActiveGame()
+        local chessBoardsFolder = workspace:FindFirstChild("ChessBoards")
+        if not chessBoardsFolder then return false end
+
+        for _, board in ipairs(chessBoardsFolder:GetChildren()) do
+            if board:IsA("Model") and board:FindFirstChild("WhitePlayer") and board:FindFirstChild("BlackPlayer") then
+                if localPlayer.Name == board.WhitePlayer.Value or localPlayer.Name == board.BlackPlayer.Value then
+                    print("[LOG]: Found active game in progress. Attaching handler...")
+                    startGameHandler(board)
+                    return true -- Signal that a game was found and handled
+                end
+            end
+        end
+        return false -- No active game found for the player
+    end
+
+    -- MODIFIED: Main startup logic
+    -- First, try to find an active game.
+    if not findAndStartActiveGame() then
+        -- If no active game is found, then listen for a new one.
+        print("[LOG]: No active game found. Listening for StartGameEvent...")
         local startGameConnection = ReplicatedStorage.Chess:WaitForChild("StartGameEvent").OnClientEvent:Connect(function(board)
             if board and (localPlayer.Name == board.WhitePlayer.Value or localPlayer.Name == board.BlackPlayer.Value) then
-                print("[LOG] New game started. Handling game.")
-                startGameHandler(board)
-            else
-                warn("Board invalid or player not in game. AI will not start.")
+                if not state.gameConnected then
+                    print("[LOG]: New game started.")
+                    startGameHandler(board)
+                end
             end
         end)
         table.insert(state.activeConnections, startGameConnection)
-    else
-        warn("Game instance connection is already active. Attempting to reconnect if necessary.")
-        -- If gameConnected is true but no active connections, might indicate a state issue.
-        -- For now, we'll just warn and assume the previous connection handler is still managing things.
     end
 end
 
