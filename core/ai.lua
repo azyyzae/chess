@@ -101,7 +101,9 @@ function M.start(modules)
             end
 
             local currentFen = board.FEN.Value
-            if not currentFen or currentFen == "" then
+            
+            -- This is the improved, more robust check.
+            if type(currentFen) ~= "string" or currentFen == "" then
                 return
             end
 
