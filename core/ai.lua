@@ -118,6 +118,15 @@ function M.start(modules)
             return isLocalWhite == board.WhiteToPlay.Value
         end
 
+        -- Calculate best move using Sunfish engine
+        local function calculateMove(fen)
+            if GetBestMove then
+                return GetBestMove(fen)
+            end
+            warn("GetBestMove function not found")
+            return nil
+        end
+
     -- Check for playable moves until game ends
         local function gameLoop()
             task.wait(2) -- Reduced initial wait
