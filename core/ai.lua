@@ -101,6 +101,10 @@ function M.start(modules)
             end
 
             local currentFen = board.FEN.Value
+            if not currentFen or currentFen == "" then
+                return
+            end
+
             local move = GetBestMove(currentFen)
 
             if move then
