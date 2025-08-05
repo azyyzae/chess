@@ -1,12 +1,14 @@
 local config = {}
 
+-- Clock to wait-time ranges
 config.CLOCK_WAIT_MAPPING = {
-    ["∞"] = {min = 4, max = 7},
-    ["1:00"] = {min = 0, max = 1},
-    ["3:00"] = {min = 2, max = 3},
-    ["10:00"] = {min = 4, max = 7},
+    ["∞"] = {min = 2, max = 4},
+    ["1:00"] = {min = 0, max = 0.5},
+    ["3:00"] = {min = 1, max = 2},
+    ["10:00"] = {min = 2, max = 4},
 }
 
+-- Clock to game type
 config.CLOCK_NAME_MAPPING = {
     ["1:00"] = "bullet",
     ["3:00"] = "blitz",
@@ -14,6 +16,7 @@ config.CLOCK_NAME_MAPPING = {
     ["∞"] = "casual",
 }
 
+-- Icon and colors
 config.ICON_IMAGE = "http://www.roblox.com/asset/?id=95384848753847"
 
 config.COLORS = {
